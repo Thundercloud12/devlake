@@ -28,8 +28,6 @@ type ScopeConfig struct {
 	archived.ScopeConfig `mapstructure:",squash" json:",inline" gorm:"embedded"`
 	ConnectionId         uint64 `json:"connectionId" gorm:"index" validate:"required" mapstructure:"connectionId,omitempty"`
 	Name                 string `mapstructure:"name" json:"name" gorm:"type:varchar(255);uniqueIndex" validate:"required"`
-	LabelKey             string `json:"labelKey"`
-	LabelValue           string `json:"labelValue"`
 }
 
 func (ScopeConfig) TableName() string {

@@ -131,43 +131,4 @@ func TestIncidentDataFlow(t *testing.T) {
 			IgnoreTypes: []interface{}{common.NoPKModel{}},
 		},
 	)
-
-	// A second convert pass over the same already-extracted tool-layer rows,
-	// this time with a label-based scope filter (LabelKey/LabelValue), to
-	// exercise the per-scope MatchesScope skip path (models/scope_config.go)
-	// end-to-end against real data — not just the pure-function unit tests in
-	// tasks/incidents_collector_test.go. Incidents `4` and `6` both carry
-	// team_name:platform; `5` (no labels) and `7` (team_name:payments) must be
-	// excluded from conversion entirely.
-	scopedOptions := tasks.GrafanaIrmOptions{
-		ConnectionId: 1,
-		ScopeId:      "default",
-		ScopeConfig: &models.GrafanaIrmScopeConfig{
-			LabelKey:   "team_name",
-			LabelValue: "platform",
-		},
-	}
-	scopedTaskData := &tasks.GrafanaIrmTaskData{
-		Options:    &scopedOptions,
-		Connection: taskData.Connection,
-	}
-	dataflowTester.FlushTabler(&ticket.Issue{})
-	dataflowTester.FlushTabler(&ticket.BoardIssue{})
-	dataflowTester.FlushTabler(&ticket.IssueLabel{})
-	dataflowTester.FlushTabler(&ticket.IssueAssignee{})
-	dataflowTester.Subtask(tasks.ConvertIncidentsMeta, scopedTaskData)
-	dataflowTester.VerifyTableWithOptions(
-		ticket.Issue{},
-		e2ehelper.TableOptions{
-			CSVRelPath:  "./snapshot_tables/issues_scoped_by_label.csv",
-			IgnoreTypes: []interface{}{common.NoPKModel{}},
-		},
-	)
-	dataflowTester.VerifyTableWithOptions(
-		ticket.IssueLabel{},
-		e2ehelper.TableOptions{
-			CSVRelPath:  "./snapshot_tables/issue_labels_scoped_by_label.csv",
-			IgnoreTypes: []interface{}{common.NoPKModel{}},
-		},
-	)
 }

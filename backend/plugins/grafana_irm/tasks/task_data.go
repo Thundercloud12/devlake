@@ -47,26 +47,6 @@ func (p *GrafanaIrmOptions) GetParams() any {
 	}
 }
 
-// LabelFilterTerm is this scope's query-DSL filter term, or "" when the scope
-// has no filter (meaning it covers every real incident on the connection).
-// A missing ScopeConfig is treated the same as an unfiltered one.
-func (p *GrafanaIrmOptions) LabelFilterTerm() string {
-	if p.ScopeConfig == nil {
-		return ""
-	}
-	return p.ScopeConfig.LabelFilterTerm()
-}
-
-// MatchesScope reports whether an incident carrying the given labels belongs
-// to this scope, recomputed from the incident's current labels (see
-// models.GrafanaIrmScopeConfig.Matches).
-func (p *GrafanaIrmOptions) MatchesScope(labels []models.IncidentLabel) bool {
-	if p.ScopeConfig == nil {
-		return true
-	}
-	return p.ScopeConfig.Matches(labels)
-}
-
 func DecodeAndValidateTaskOptions(options map[string]interface{}) (*GrafanaIrmOptions, errors.Error) {
 	op, err := DecodeTaskOptions(options)
 	if err != nil {

@@ -87,11 +87,7 @@ func CollectIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 		return err
 	}
 
-	queryString := buildIncidentsQueryString(
-		data.Options.LabelFilterTerm(),
-		collector.GetSince(),
-		collector.GetUntil(),
-	)
+	queryString := buildIncidentsQueryString(collector.GetSince(), collector.GetUntil())
 
 	var lastCursor string
 	var lastHasMore bool
@@ -142,17 +138,11 @@ func CollectIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 // buildIncidentsQueryString implements the incremental-sync recipe verified
 // live against the real API (grafana_irm_plan.md §10.1/§10.2). since/until
 // come from the framework's own collector state tracking; a nil since means
-// a full sync, so no date restriction is applied.
-//
-// labelFilterTerm scopes collection to one label (`field:<key>:<value>`,
-// §4.1); an empty term means this scope covers every real incident on the
-// connection. All terms AND together, and the `or(...)` group parses as one
-// operand of that AND — both verified live (§10.1).
-func buildIncidentsQueryString(labelFilterTerm string, since, until *time.Time) string {
+// a full sync, so no date restriction is applied. A connection has exactly
+// one scope covering its whole incident stream (§4.2), so there is no
+// per-scope filter term to add here.
+func buildIncidentsQueryString(since, until *time.Time) string {
 	terms := []string{"isdrill:false"}
-	if labelFilterTerm != "" {
-		terms = append(terms, labelFilterTerm)
-	}
 	if since != nil && until != nil {
 		from := since.UTC().Format(time.RFC3339)
 		to := until.UTC().Format(time.RFC3339)

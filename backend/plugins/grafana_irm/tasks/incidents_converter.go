@@ -43,10 +43,10 @@ var ConvertIncidentsMeta = plugin.SubTaskMeta{
 
 // ConvertIncidents maps tool-layer Incident rows to domain ticket.Issue rows
 // (Type: INCIDENT), plus their labels and real assignments as IssueLabel/
-// IssueAssignee rows. There is no per-incident scope/team field to key
-// BoardIssue on (§4 — Grafana IRM has no listable service/team resource), so
-// every incident collected for this connection is attached to whichever
-// scope's pipeline run is doing the converting.
+// IssueAssignee rows. A connection has exactly one scope covering its whole
+// incident stream (§4.2 — Grafana IRM has no listable service/team resource,
+// and the originating feature request never asked for per-team filtering),
+// so every incident collected for this connection converts unconditionally.
 func ConvertIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 	db := taskCtx.GetDal()
 	data := taskCtx.GetData().(*GrafanaIrmTaskData)
@@ -82,16 +82,6 @@ func ConvertIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 				dal.Where("connection_id = ? AND incident_id = ?", data.Options.ConnectionId, incident.Id),
 			); err != nil {
 				return nil, err
-			}
-
-			// Scope membership is recomputed from the incident's current
-			// labels on every run rather than read from a stored column: an
-			// incident can match several scopes at once, so there is no
-			// single "which scope" value to store (see grafana_irm_plan.md
-			// §4.1). An incident matching no scope is simply not converted
-			// under that scope — there is no catch-all bucket.
-			if !data.Options.MatchesScope(labels) {
-				return nil, nil
 			}
 
 			status, known := mapIncidentStatus(incident.Status)
