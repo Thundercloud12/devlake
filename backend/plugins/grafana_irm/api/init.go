@@ -29,11 +29,9 @@ var vld *validator.Validate
 var basicRes context.BasicRes
 
 var dsHelper *api.DsHelper[models.GrafanaIrmConnection, models.GrafanaIrmScope, models.GrafanaIrmScopeConfig]
-
-// No remote-scope helpers (raProxy/raScopeList/raScopeSearch) are wired up
-// here: the Grafana Incident API has no remote-listable service/team
-// resource to browse, so scopes are created by hand in config-ui rather
-// than picked from a remote list (see grafana_irm_plan.md §4).
+var raProxy *api.DsRemoteApiProxyHelper[models.GrafanaIrmConnection]
+var raScopeList *api.DsRemoteApiScopeListHelper[models.GrafanaIrmConnection, models.GrafanaIrmScope, GrafanaIrmRemotePagination]
+var raScopeSearch *api.DsRemoteApiScopeSearchHelper[models.GrafanaIrmConnection, models.GrafanaIrmScope]
 
 func Init(br context.BasicRes, p plugin.PluginMeta) {
 	vld = validator.New()
@@ -50,4 +48,12 @@ func Init(br context.BasicRes, p plugin.PluginMeta) {
 		nil,
 		nil,
 	)
+	// The Grafana Incident API has no remote-listable service/team resource
+	// (grafana_irm_plan.md §4), but config-ui's data-scope picker has no
+	// manual-entry flow to fall back to either — so these list/search a
+	// single synthetic "whole connection" scope (§4.3) rather than a real
+	// remote list.
+	raProxy = api.NewDsRemoteApiProxyHelper[models.GrafanaIrmConnection](dsHelper.ConnApi.ModelApiHelper)
+	raScopeList = api.NewDsRemoteApiScopeListHelper[models.GrafanaIrmConnection, models.GrafanaIrmScope, GrafanaIrmRemotePagination](raProxy, listGrafanaIrmRemoteScopes)
+	raScopeSearch = api.NewDsRemoteApiScopeSearchHelper[models.GrafanaIrmConnection, models.GrafanaIrmScope](raProxy, searchGrafanaIrmRemoteScopes)
 }

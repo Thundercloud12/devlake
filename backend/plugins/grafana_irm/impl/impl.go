@@ -185,6 +185,12 @@ func (p GrafanaIrm) ApiResources() map[string]map[string]plugin.ApiResourceHandl
 		"connections/:connectionId/test": {
 			"POST": api.TestExistingConnection,
 		},
+		"connections/:connectionId/remote-scopes": {
+			"GET": api.RemoteScopes,
+		},
+		"connections/:connectionId/search-remote-scopes": {
+			"GET": api.SearchRemoteScopes,
+		},
 		"connections/:connectionId/scopes": {
 			"GET": api.GetScopeList,
 			"PUT": api.PutScopes,
