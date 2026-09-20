@@ -75,7 +75,6 @@ func (p GrafanaIrm) ScopeConfig() dal.Tabler {
 func (p GrafanaIrm) SubTaskMetas() []plugin.SubTaskMeta {
 	return []plugin.SubTaskMeta{
 		tasks.CollectIncidentsMeta,
-		tasks.RefreshOpenIncidentsMeta,
 		tasks.ExtractIncidentsMeta,
 		tasks.ConvertIncidentsMeta,
 	}
