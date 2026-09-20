@@ -39,7 +39,7 @@ type Incident struct {
 	// is relative (verified live, see §3.4) and must be prefixed with the
 	// connection's endpoint by the extractor before being stored here.
 	Url          string
-	Status       string `gorm:"index"`
+	Status string `gorm:"index;type:varchar(255)"`
 	Severity     string
 	CreatedDate  time.Time
 	UpdatedDate  time.Time

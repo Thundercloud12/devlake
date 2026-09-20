@@ -151,13 +151,42 @@ func buildIncidentsQueryString(since, until *time.Time) string {
 	return strings.Join(terms, " ")
 }
 
+// Name deliberately contains "collect": DevLake's "Re-transform Data" action
+// (server/services/blueprint.go's removeCollectorTasks) strips any subtask
+// whose name contains that substring, on the assumption that a collector
+// subtask only ever fetches from the remote API and never needs to run for a
+// local-only re-transform. RefreshOpenIncidents makes real API calls and can
+// rewrite raw data (see its doc comment below), so it must be recognized by
+// that filter the same way collectIncidents already is — otherwise a
+// full_sync pipeline run (which "Re-transform Data" sets) forces this
+// subtask's collector into non-incremental mode regardless of the
+// `Incremental: true` set on it below (api_collector.go's Execute() checks
+// the pipeline's own SyncPolicy.FullSync and overrides it), wiping the raw
+// table down to only the currently-open incidents and, via extractIncidents'
+// delete-by-RawDataOrigin-then-rebuild behavior, silently deleting every
+// already-resolved incident from the tool and domain tables. Confirmed live:
+// a "Re-transform Data" run with the old name left only 2 of 4 real
+// incidents in `_tool_grafana_irm_incidents` (see grafana_irm_plan.md).
 var RefreshOpenIncidentsMeta = plugin.SubTaskMeta{
-	Name:             "refreshOpenIncidents",
+	Name:             "collectOpenIncidentRefresh",
 	EntryPoint:       RefreshOpenIncidents,
 	EnabledByDefault: true,
 	Description:      "Re-fetch incidents this connection last saw as unresolved, to catch changes no date-range query can see",
 	DomainTypes:      []string{plugin.DOMAIN_TYPE_TICKET},
 	ProductTables:    []string{RAW_INCIDENTS_TABLE},
+}
+
+// refreshOpenIncidentsRequestBody reads the current input row off reqData.
+// NewDalCursorIterator (used to build RefreshOpenIncidents' input below)
+// hands back *simplifiedIncident, not simplifiedIncident: it constructs each
+// row via reflect.New, which always yields a pointer. Asserting the value
+// type here panics at runtime with "interface conversion: interface {} is
+// *tasks.simplifiedIncident, not tasks.simplifiedIncident" — caught only once
+// a real pipeline run reached this path with an unresolved incident already
+// synced, since no unit/e2e test previously exercised this iterator.
+func refreshOpenIncidentsRequestBody(reqData *api.RequestData) map[string]interface{} {
+	input := reqData.Input.(*simplifiedIncident)
+	return map[string]interface{}{"incidentID": input.Id}
 }
 
 // RefreshOpenIncidents is the second half of the design in
@@ -209,10 +238,7 @@ func RefreshOpenIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 		Input:       iterator,
 		Method:      http.MethodPost,
 		UrlTemplate: "api/plugins/grafana-irm-app/resources/api/v1/IncidentsService.GetIncident",
-		RequestBody: func(reqData *api.RequestData) map[string]interface{} {
-			input := reqData.Input.(simplifiedIncident)
-			return map[string]interface{}{"incidentID": input.Id}
-		},
+		RequestBody: refreshOpenIncidentsRequestBody,
 		ResponseParser: func(res *http.Response) ([]json.RawMessage, errors.Error) {
 			envelope := &getIncidentResponse{}
 			if err := api.UnmarshalResponse(res, envelope); err != nil {

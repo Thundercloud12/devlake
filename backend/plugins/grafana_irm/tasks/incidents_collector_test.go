@@ -18,11 +18,25 @@ limitations under the License.
 package tasks
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/apache/devlake/helpers/pluginhelper/api"
 )
+
+// RefreshOpenIncidents makes real API calls and can rewrite raw data, so
+// DevLake's own "Re-transform Data" filter (server/services/blueprint.go's
+// removeCollectorTasks, which strips any subtask whose name contains
+// "collect") must recognize it as a collector, the same way it already does
+// for collectIncidents. If this ever regresses, a "Re-transform Data" run
+// silently deletes every already-resolved incident from the tool/domain
+// tables — confirmed live once, see grafana_irm_plan.md §12/§13.
+func TestRefreshOpenIncidentsMetaNameIsRecognizedAsACollector(t *testing.T) {
+	assert.Contains(t, strings.ToLower(RefreshOpenIncidentsMeta.Name), "collect")
+}
 
 // The expected strings below are the exact query shapes verified live against
 // a real stack (see grafana_irm_plan.md §10.1): `isdrill:false`, and the
@@ -59,4 +73,18 @@ func TestBuildIncidentsQueryString(t *testing.T) {
 			assert.Equal(t, tc.expected, buildIncidentsQueryString(tc.since, tc.until))
 		})
 	}
+}
+
+// Regression test for a real panic hit on a live pipeline run:
+// NewDalCursorIterator (see RefreshOpenIncidents) hands back *simplifiedIncident,
+// not simplifiedIncident — reflect.New always yields a pointer — so asserting
+// the value type here panicked with "interface conversion: interface {} is
+// *tasks.simplifiedIncident, not tasks.simplifiedIncident" the first time this
+// path actually ran against a connection with an unresolved incident already
+// synced. Neither the unit tests nor the e2e fixtures exercised this iterator
+// before that.
+func TestRefreshOpenIncidentsRequestBody(t *testing.T) {
+	reqData := &api.RequestData{Input: &simplifiedIncident{Id: "42"}}
+	body := refreshOpenIncidentsRequestBody(reqData)
+	assert.Equal(t, map[string]interface{}{"incidentID": "42"}, body)
 }
