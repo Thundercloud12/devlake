@@ -30,15 +30,20 @@ import (
 )
 
 // The raw fixture is not hand-authored: it's the exact (compacted) JSON
-// captured live from a real Grafana Cloud dev stack on 2026-09-19 — incidents
-// `4` (active, one real label, no assignment) and `5` (resolved, no labels,
-// no assignment). See grafana_irm_plan.md §9.
+// captured live from a real Grafana Cloud dev stack — the four real
+// (non-drill) incidents present there as of 2026-09-20. See
+// grafana_irm_plan.md §9:
+//   - `4`: active, Major, one label (team_name:platform), no assignment
+//   - `5`: resolved, Minor, no labels, no assignment
+//   - `6`: active, Critical, two labels (service_name:orders-api,
+//     team_name:platform), one real role assignment (commander)
+//   - `7`: resolved, Minor, one label (team_name:payments, a different team
+//     than 4/6), no assignment
 //
-// The scope config here is unfiltered (LabelKey/LabelValue both empty),
-// meaning it covers every real incident — so both should convert. Per-scope
-// filtering itself (an incident matching, or not matching, a specific
-// LabelKey/LabelValue) is covered by the live-verified unit tests in
-// tasks/incidents_collector_test.go, not duplicated here.
+// This mix exercises every field the extractor/converter touch: multiple
+// severities, both statuses (with a real resolution timestamp), zero/one/two
+// labels, and a real (non-placeholder) assignment — not just the "happy path"
+// of a single unlabeled, unassigned incident.
 func TestIncidentDataFlow(t *testing.T) {
 	var plugin impl.GrafanaIrm
 	dataflowTester := e2ehelper.NewDataFlowTester(t, "grafana_irm", plugin)
@@ -123,6 +128,45 @@ func TestIncidentDataFlow(t *testing.T) {
 		ticket.IssueAssignee{},
 		e2ehelper.TableOptions{
 			CSVRelPath:  "./snapshot_tables/issue_assignees.csv",
+			IgnoreTypes: []interface{}{common.NoPKModel{}},
+		},
+	)
+
+	// A second convert pass over the same already-extracted tool-layer rows,
+	// this time with a label-based scope filter (LabelKey/LabelValue), to
+	// exercise the per-scope MatchesScope skip path (models/scope_config.go)
+	// end-to-end against real data — not just the pure-function unit tests in
+	// tasks/incidents_collector_test.go. Incidents `4` and `6` both carry
+	// team_name:platform; `5` (no labels) and `7` (team_name:payments) must be
+	// excluded from conversion entirely.
+	scopedOptions := tasks.GrafanaIrmOptions{
+		ConnectionId: 1,
+		ScopeId:      "default",
+		ScopeConfig: &models.GrafanaIrmScopeConfig{
+			LabelKey:   "team_name",
+			LabelValue: "platform",
+		},
+	}
+	scopedTaskData := &tasks.GrafanaIrmTaskData{
+		Options:    &scopedOptions,
+		Connection: taskData.Connection,
+	}
+	dataflowTester.FlushTabler(&ticket.Issue{})
+	dataflowTester.FlushTabler(&ticket.BoardIssue{})
+	dataflowTester.FlushTabler(&ticket.IssueLabel{})
+	dataflowTester.FlushTabler(&ticket.IssueAssignee{})
+	dataflowTester.Subtask(tasks.ConvertIncidentsMeta, scopedTaskData)
+	dataflowTester.VerifyTableWithOptions(
+		ticket.Issue{},
+		e2ehelper.TableOptions{
+			CSVRelPath:  "./snapshot_tables/issues_scoped_by_label.csv",
+			IgnoreTypes: []interface{}{common.NoPKModel{}},
+		},
+	)
+	dataflowTester.VerifyTableWithOptions(
+		ticket.IssueLabel{},
+		e2ehelper.TableOptions{
+			CSVRelPath:  "./snapshot_tables/issue_labels_scoped_by_label.csv",
 			IgnoreTypes: []interface{}{common.NoPKModel{}},
 		},
 	)

@@ -28,12 +28,12 @@ import (
 )
 
 // These fixtures are not hand-authored: they're the exact (compacted) JSON
-// captured live from a real Grafana Cloud dev stack on 2026-09-19 — incident
-// `2` (active, real labels, one real role assignment among the placeholder
-// slots) and incident `5` (resolved, no labels, no assignments). See
-// grafana_irm_plan.md §9.
+// captured live from a real Grafana Cloud dev stack — incident `6` (active,
+// two real labels, one real role assignment among the placeholder slots) as
+// of 2026-09-20, and incident `5` (resolved, no labels, no assignments) as of
+// 2026-09-19. See grafana_irm_plan.md §9.
 
-const activeWithAssignmentJSON = `{"incidentID": "2", "refs": [], "severity": "Major", "labels": [{"key": "service_name", "label": "checkout-api", "description": "", "colorHex": ""}, {"key": "team_name", "label": "checkout", "description": "", "colorHex": ""}], "isDrill": true, "incidentType": "internal", "createdTime": "2026-09-19T11:02:02.688373Z", "modifiedTime": "2026-09-19T11:07:35.404041Z", "createdByUser": {"userID": "grafana-incident:user-6aae6b80244e1a8626a0a593", "name": "Service Account: grafana-irm-plugin-dev", "photoURL": "https://www.gravatar.com/avatar/e244d010798c52b18bb2009c179dac20?s=512&d=retro"}, "closedTime": "", "durationSeconds": 17876, "status": "active", "title": "[DevLake seed] Checkout service 5xx spike", "overviewURL": "/a/grafana-irm-app/incidents/2/devlake-seed-checkout-service-5xx-spike", "incidentMembership": {"assignments": [{"user": {"userID": "grafana-incident:user-6aae6b80244e1a8626a0a593", "name": "Service Account: grafana-irm-plugin-dev", "photoURL": "https://www.gravatar.com/avatar/e244d010798c52b18bb2009c179dac20?s=512&d=retro"}, "role": {"roleID": 9576, "orgID": "1836253", "name": "commander", "description": "Owns the incident (has their full-time attention)", "important": true, "mandatory": true, "archived": false, "createdAt": "2026-09-19T11:00:21Z", "updatedAt": ""}, "roleID": 9576}, {"user": {"userID": "", "name": "", "photoURL": ""}, "role": {"roleID": 0, "orgID": "", "name": "", "description": "", "important": false, "mandatory": false, "archived": false, "createdAt": "", "updatedAt": ""}, "roleID": 0}, {"user": {"userID": "", "name": "", "photoURL": ""}, "role": {"roleID": 0, "orgID": "", "name": "", "description": "", "important": false, "mandatory": false, "archived": false, "createdAt": "", "updatedAt": ""}, "roleID": 0}], "totalAssignments": 1, "totalParticipants": 0}, "taskList": {"tasks": [], "todoCount": 0, "doneCount": 0}, "summary": "", "incidentStart": "2026-09-19T11:02:02Z", "incidentEnd": "", "incidentChannels": []}`
+const activeWithAssignmentJSON = `{"incidentID": "6", "refs": [], "severity": "Critical", "labels": [{"key": "service_name", "label": "orders-api", "description": "", "colorHex": ""}, {"key": "team_name", "label": "platform", "description": "", "colorHex": ""}], "isDrill": false, "incidentType": "internal", "createdTime": "2026-09-20T05:01:00.946089Z", "modifiedTime": "2026-09-20T05:01:15.377404Z", "createdByUser": {"userID": "grafana-incident:user-6aae6b80244e1a8626a0a593", "name": "Service Account: grafana-irm-plugin-dev", "photoURL": "https://www.gravatar.com/avatar/e244d010798c52b18bb2009c179dac20?s=512&d=retro"}, "closedTime": "", "durationSeconds": 63, "status": "active", "title": "[DevLake seed] Database connection pool exhaustion", "overviewURL": "/a/grafana-irm-app/incidents/6/devlake-seed-database-connection-pool-exhaustion", "incidentMembership": {"assignments": [{"user": {"userID": "grafana-incident:user-6aae6b80244e1a8626a0a593", "name": "Service Account: grafana-irm-plugin-dev", "photoURL": "https://www.gravatar.com/avatar/e244d010798c52b18bb2009c179dac20?s=512&d=retro"}, "role": {"roleID": 9576, "orgID": "1836253", "name": "commander", "description": "Owns the incident (has their full-time attention)", "important": true, "mandatory": true, "archived": false, "createdAt": "2026-09-19T11:00:21Z", "updatedAt": ""}, "roleID": 9576}, {"user": {"userID": "", "name": "", "photoURL": ""}, "role": {"roleID": 0, "orgID": "", "name": "", "description": "", "important": false, "mandatory": false, "archived": false, "createdAt": "", "updatedAt": ""}, "roleID": 0}, {"user": {"userID": "", "name": "", "photoURL": ""}, "role": {"roleID": 0, "orgID": "", "name": "", "description": "", "important": false, "mandatory": false, "archived": false, "createdAt": "", "updatedAt": ""}, "roleID": 0}], "totalAssignments": 1, "totalParticipants": 0}, "taskList": {"tasks": [], "todoCount": 0, "doneCount": 0}, "summary": "", "incidentStart": "2026-09-20T05:01:00Z", "incidentEnd": "", "incidentChannels": []}`
 
 const resolvedNoExtrasJSON = `{"incidentID": "5", "refs": [], "severity": "Minor", "labels": [], "isDrill": false, "incidentType": "internal", "createdTime": "2026-09-19T11:33:10.948822Z", "modifiedTime": "2026-09-19T11:33:27.648602Z", "createdByUser": {"userID": "grafana-incident:user-6aae6b80244e1a8626a0a593", "name": "Service Account: grafana-irm-plugin-dev", "photoURL": "https://www.gravatar.com/avatar/e244d010798c52b18bb2009c179dac20?s=512&d=retro"}, "closedTime": "2026-09-19T11:33:27.17626Z", "durationSeconds": 17, "status": "resolved", "title": "[DevLake seed] Cache cluster node failure", "overviewURL": "/a/grafana-irm-app/incidents/5/devlake-seed-cache-cluster-node-failure", "incidentMembership": {"assignments": [{"user": {"userID": "", "name": "", "photoURL": ""}, "role": {"roleID": 0, "orgID": "", "name": "", "description": "", "important": false, "mandatory": false, "archived": false, "createdAt": "", "updatedAt": ""}, "roleID": 0}], "totalAssignments": 0, "totalParticipants": 0}, "taskList": {"tasks": [], "todoCount": 0, "doneCount": 0}, "summary": "", "incidentStart": "2026-09-19T11:33:10Z", "incidentEnd": "2026-09-19T11:33:27.17626Z", "incidentChannels": []}`
 
@@ -50,21 +50,21 @@ func TestExtractIncident_ActiveWithLabelsAndAssignment(t *testing.T) {
 
 	incident := results[0].(*models.Incident)
 	assert.Equal(t, uint64(1), incident.ConnectionId)
-	assert.Equal(t, "2", incident.Id)
-	assert.Equal(t, "[DevLake seed] Checkout service 5xx spike", incident.Title)
-	assert.Equal(t, "https://mystack.grafana.net/a/grafana-irm-app/incidents/2/devlake-seed-checkout-service-5xx-spike", incident.Url)
+	assert.Equal(t, "6", incident.Id)
+	assert.Equal(t, "[DevLake seed] Database connection pool exhaustion", incident.Title)
+	assert.Equal(t, "https://mystack.grafana.net/a/grafana-irm-app/incidents/6/devlake-seed-database-connection-pool-exhaustion", incident.Url)
 	assert.Equal(t, "active", incident.Status)
-	assert.Equal(t, "Major", incident.Severity)
-	assert.True(t, incident.CreatedDate.Equal(mustParseTime(t, "2026-09-19T11:02:02.688373Z")))
-	assert.True(t, incident.UpdatedDate.Equal(mustParseTime(t, "2026-09-19T11:07:35.404041Z")))
+	assert.Equal(t, "Critical", incident.Severity)
+	assert.True(t, incident.CreatedDate.Equal(mustParseTime(t, "2026-09-20T05:01:00.946089Z")))
+	assert.True(t, incident.UpdatedDate.Equal(mustParseTime(t, "2026-09-20T05:01:15.377404Z")))
 	assert.Nil(t, incident.ResolvedDate)
 
 	label1 := results[1].(*models.IncidentLabel)
 	assert.Equal(t, "service_name", label1.Key)
-	assert.Equal(t, "checkout-api", label1.Label)
+	assert.Equal(t, "orders-api", label1.Label)
 	label2 := results[2].(*models.IncidentLabel)
 	assert.Equal(t, "team_name", label2.Key)
-	assert.Equal(t, "checkout", label2.Label)
+	assert.Equal(t, "platform", label2.Label)
 
 	assignment := results[3].(*models.IncidentAssignment)
 	assert.Equal(t, "grafana-incident:user-6aae6b80244e1a8626a0a593", assignment.UserId)

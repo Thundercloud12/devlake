@@ -18,16 +18,50 @@ limitations under the License.
 package api
 
 import (
+	"context"
+	"net/http"
+
 	"github.com/apache/devlake/core/errors"
 	"github.com/apache/devlake/core/plugin"
+	"github.com/apache/devlake/helpers/pluginhelper/api"
+	"github.com/apache/devlake/plugins/grafana_irm/models"
 )
 
-// TestConnection and TestExistingConnection are intentionally not
-// implemented yet: verifying a Grafana IRM connection means calling a real
-// IncidentsService RPC method (e.g. QueryIncidents) over POST, and which
-// call/request-body to use is a logic decision deferred alongside the
-// collector (see grafana_irm_plan.md). The route is wired up so config-ui's
-// "test connection" button has somewhere to call once that's decided.
+// testConnection calls IncidentsService.QueryIncidents with limit:1 and an
+// empty queryString — the cheapest call that's valid on every stack (even one
+// with zero incidents) and exercises real auth, per grafana_irm_plan.md §3.4
+// (OrderDirection is required; queryString "" matches everything). Mirrors
+// incidentio's testConnection pattern (api/connection_api.go there), adapted
+// from a REST GET to this API's JSON-RPC POST shape.
+func testConnection(ctx context.Context, connection models.GrafanaIrmConn) (*plugin.ApiResourceOutput, errors.Error) {
+	if vld != nil {
+		if err := vld.Struct(connection); err != nil {
+			return nil, errors.Default.Wrap(err, "error validating target")
+		}
+	}
+	apiClient, err := api.NewApiClientFromConnection(ctx, basicRes, &connection)
+	if err != nil {
+		return nil, err
+	}
+	body := map[string]interface{}{
+		"query": map[string]interface{}{
+			"limit":          1,
+			"orderDirection": "ASC",
+			"queryString":    "",
+		},
+	}
+	response, err := apiClient.Post("api/plugins/grafana-irm-app/resources/api/v1/IncidentsService.QueryIncidents", nil, body, nil)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+		return nil, errors.HttpStatus(http.StatusBadRequest).New("StatusUnauthorized error while testing connection")
+	}
+	if response.StatusCode == http.StatusOK {
+		return &plugin.ApiResourceOutput{Body: nil, Status: http.StatusOK}, nil
+	}
+	return &plugin.ApiResourceOutput{Body: nil, Status: response.StatusCode}, errors.HttpStatus(response.StatusCode).New("could not validate connection")
+}
 
 // TestConnection test grafana_irm connection
 // @Summary test grafana_irm connection
@@ -39,7 +73,16 @@ import (
 // @Failure 500  {string} errcode.Error "Internal Error"
 // @Router /plugins/grafana_irm/test [POST]
 func TestConnection(input *plugin.ApiResourceInput) (*plugin.ApiResourceOutput, errors.Error) {
-	return nil, errors.Default.New("grafana_irm TestConnection is not implemented yet")
+	var connection models.GrafanaIrmConn
+	err := api.Decode(input.Body, &connection, vld)
+	if err != nil {
+		return nil, err
+	}
+	testConnectionResult, testConnectionErr := testConnection(context.TODO(), connection)
+	if testConnectionErr != nil {
+		return nil, plugin.WrapTestConnectionErrResp(basicRes, testConnectionErr)
+	}
+	return testConnectionResult, nil
 }
 
 // TestExistingConnection test grafana_irm connection
@@ -52,7 +95,18 @@ func TestConnection(input *plugin.ApiResourceInput) (*plugin.ApiResourceOutput, 
 // @Failure 500  {string} errcode.Error "Internal Error"
 // @Router /plugins/grafana_irm/connections/{connectionId}/test [POST]
 func TestExistingConnection(input *plugin.ApiResourceInput) (*plugin.ApiResourceOutput, errors.Error) {
-	return nil, errors.Default.New("grafana_irm TestExistingConnection is not implemented yet")
+	connection, err := dsHelper.ConnApi.GetMergedConnection(input)
+	if err != nil {
+		return nil, errors.BadInput.Wrap(err, "find connection from db")
+	}
+	if err := api.DecodeMapStruct(input.Body, connection, false); err != nil {
+		return nil, err
+	}
+	testConnectionResult, testConnectionErr := testConnection(context.TODO(), connection.GrafanaIrmConn)
+	if testConnectionErr != nil {
+		return nil, plugin.WrapTestConnectionErrResp(basicRes, testConnectionErr)
+	}
+	return testConnectionResult, nil
 }
 
 // @Summary create grafana_irm connection
