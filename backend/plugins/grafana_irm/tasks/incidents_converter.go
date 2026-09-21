@@ -65,6 +65,19 @@ func ConvertIncidents(taskCtx plugin.SubTaskContext) errors.Error {
 	boardId := didgen.NewDomainIdGenerator(&models.GrafanaIrmScope{}).
 		Generate(data.Options.ConnectionId, data.Options.ScopeId)
 
+	scope := &models.GrafanaIrmScope{}
+	scopeName := "All Incidents"
+	if err := db.First(scope, dal.Where("connection_id = ? AND id = ?", data.Options.ConnectionId, data.Options.ScopeId)); err == nil && scope.Name != "" {
+		scopeName = scope.Name
+	}
+	domainBoard := &ticket.Board{
+		DomainEntity: domainlayer.DomainEntity{Id: boardId},
+		Name:         scopeName,
+	}
+	if err := db.CreateOrUpdate(domainBoard); err != nil {
+		return err
+	}
+
 	converter, err := api.NewDataConverter(api.DataConverterArgs{
 		RawDataSubTaskArgs: api.RawDataSubTaskArgs{
 			Ctx:     taskCtx,
