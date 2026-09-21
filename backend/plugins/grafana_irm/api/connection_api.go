@@ -19,7 +19,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/apache/devlake/core/errors"
 	"github.com/apache/devlake/core/plugin"
@@ -36,12 +38,25 @@ import (
 func testConnection(ctx context.Context, connection models.GrafanaIrmConn) (*plugin.ApiResourceOutput, errors.Error) {
 	if vld != nil {
 		if err := vld.Struct(connection); err != nil {
-			return nil, errors.Default.Wrap(err, "error validating target")
+			return nil, errors.BadInput.New(fmt.Sprintf("Validation failed: %s", err.Error()))
 		}
 	}
 	apiClient, err := api.NewApiClientFromConnection(ctx, basicRes, &connection)
 	if err != nil {
-		return nil, err
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "no such host") || strings.Contains(errMsg, "Failed to resolve DNS") {
+			return nil, errors.BadInput.New(fmt.Sprintf("Failed to resolve hostname for '%s'. Please check your Grafana Cloud URL for typos (e.g. https://<stack>.grafana.net/).", connection.Endpoint))
+		}
+		if strings.Contains(errMsg, "Invalid URL") || strings.Contains(errMsg, "scheme") {
+			return nil, errors.BadInput.New(fmt.Sprintf("Invalid endpoint URL '%s': please ensure it starts with https:// (e.g. https://<stack>.grafana.net/).", connection.Endpoint))
+		}
+		if strings.Contains(errMsg, "Failed to connect") || strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "i/o timeout") {
+			return nil, errors.BadInput.New(fmt.Sprintf("Failed to connect to '%s' (connection timed out or refused). Please check that the URL is spelled correctly (e.g. https://<stack>.grafana.net/) and verify your network or proxy settings.", connection.Endpoint))
+		}
+		if idx := strings.Index(errMsg, " Wraps:"); idx != -1 {
+			errMsg = errMsg[:idx]
+		}
+		return nil, errors.BadInput.New(fmt.Sprintf("Invalid endpoint URL '%s': %s", connection.Endpoint, errMsg))
 	}
 	body := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -52,15 +67,25 @@ func testConnection(ctx context.Context, connection models.GrafanaIrmConn) (*plu
 	}
 	response, err := apiClient.Post("api/plugins/grafana-irm-app/resources/api/v1/IncidentsService.QueryIncidents", nil, body, nil)
 	if err != nil {
-		return nil, err
+		errMsg := err.Error()
+		if idx := strings.Index(errMsg, " Wraps:"); idx != -1 {
+			errMsg = errMsg[:idx]
+		}
+		if strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "i/o timeout") {
+			return nil, errors.BadInput.New(fmt.Sprintf("Request to Grafana IRM API timed out at '%s'. Please check that your stack URL is spelled correctly and verify your network connection.", connection.Endpoint))
+		}
+		return nil, errors.BadInput.New(fmt.Sprintf("Failed to reach Grafana IRM API at '%s': %s", connection.Endpoint, errMsg))
 	}
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, errors.HttpStatus(http.StatusBadRequest).New("StatusUnauthorized error while testing connection")
+		return nil, errors.BadInput.New("Authentication failed: invalid Service Account token or insufficient permissions for Grafana IRM.")
+	}
+	if response.StatusCode == http.StatusNotFound {
+		return nil, errors.BadInput.New(fmt.Sprintf("Grafana IRM app endpoint not found (HTTP 404) at '%s'. Please ensure the endpoint is your Grafana Cloud stack base URL (e.g. https://<stack>.grafana.net/).", connection.Endpoint))
 	}
 	if response.StatusCode == http.StatusOK {
 		return &plugin.ApiResourceOutput{Body: nil, Status: http.StatusOK}, nil
 	}
-	return &plugin.ApiResourceOutput{Body: nil, Status: response.StatusCode}, errors.HttpStatus(response.StatusCode).New("could not validate connection")
+	return &plugin.ApiResourceOutput{Body: nil, Status: response.StatusCode}, errors.BadInput.New(fmt.Sprintf("Connection test failed with HTTP status %d. Please verify your stack URL and token.", response.StatusCode))
 }
 
 // TestConnection test grafana_irm connection

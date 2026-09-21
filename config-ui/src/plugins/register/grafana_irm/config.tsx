@@ -27,7 +27,7 @@ export const GrafanaIrmConfig: IPluginConfig = {
   sort: 21,
   isBeta: true,
   connection: {
-    docLink: '',
+    docLink: 'https://grafana.com/docs/grafana-cloud/alerting-and-irm/irm/reference/incident-api/get-started/',
     initialValues: {},
     fields: [
       'name',
