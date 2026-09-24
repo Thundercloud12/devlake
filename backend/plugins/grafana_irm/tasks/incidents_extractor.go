@@ -144,7 +144,7 @@ func parseIncidentTime(value string) (time.Time, errors.Error) {
 	if err != nil {
 		return time.Time{}, errors.Convert(err)
 	}
-	return t, nil
+	return t.Truncate(time.Millisecond), nil
 }
 
 // parseOptionalIncidentTime handles fields that come back as a literal empty

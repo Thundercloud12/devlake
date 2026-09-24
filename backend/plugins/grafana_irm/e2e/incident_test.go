@@ -27,6 +27,7 @@ import (
 	"github.com/apache/devlake/plugins/grafana_irm/impl"
 	"github.com/apache/devlake/plugins/grafana_irm/models"
 	"github.com/apache/devlake/plugins/grafana_irm/tasks"
+	"github.com/stretchr/testify/require"
 )
 
 // The raw fixture is not hand-authored: it's the exact (compacted) JSON
@@ -98,6 +99,16 @@ func TestIncidentDataFlow(t *testing.T) {
 	)
 
 	// verify conversion
+	dataflowTester.FlushTabler(&models.GrafanaIrmScope{})
+	dataflowTester.FlushTabler(&ticket.Board{})
+	scope := models.GrafanaIrmScope{
+		Scope: common.Scope{
+			ConnectionId: options.ConnectionId,
+		},
+		Id:   options.ScopeId,
+		Name: "All Incidents",
+	}
+	require.NoError(t, dataflowTester.Dal.CreateOrUpdate(&scope))
 	dataflowTester.FlushTabler(&ticket.Issue{})
 	dataflowTester.FlushTabler(&ticket.BoardIssue{})
 	dataflowTester.FlushTabler(&ticket.IssueLabel{})
