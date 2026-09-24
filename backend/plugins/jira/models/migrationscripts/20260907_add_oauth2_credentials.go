@@ -18,16 +18,31 @@ limitations under the License.
 package migrationscripts
 
 import (
-	"github.com/apache/devlake/core/plugin"
+	"github.com/apache/devlake/core/context"
+	"github.com/apache/devlake/core/errors"
+	"github.com/apache/devlake/helpers/migrationhelper"
 )
 
-// All return all the migration scripts
-func All() []plugin.MigrationScript {
-	return []plugin.MigrationScript{
-		new(addInitTables),
-		new(extendRepoTable),
-		new(addEndpointToAzuredevops),
-		new(addUsernameToAzuredevops),
-		new(addRunNameToAzuredevopsBuild),
-	}
+type jiraOAuth20260907 struct {
+	ClientId     string `gorm:"type:varchar(255)"`
+	ClientSecret string `gorm:"type:text"`
+	CloudId      string `gorm:"type:varchar(255)"`
+}
+
+func (jiraOAuth20260907) TableName() string {
+	return "_tool_jira_connections"
+}
+
+type addJiraOAuth20260907 struct{}
+
+func (script *addJiraOAuth20260907) Up(basicRes context.BasicRes) errors.Error {
+	return migrationhelper.AutoMigrateTables(basicRes, &jiraOAuth20260907{})
+}
+
+func (*addJiraOAuth20260907) Version() uint64 {
+	return 20260907120000
+}
+
+func (*addJiraOAuth20260907) Name() string {
+	return "add oauth2 client credentials to _tool_jira_connections"
 }
